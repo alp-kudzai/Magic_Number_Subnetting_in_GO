@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+var REF = map[string][8]int{
+	"magic": {128, 64, 32, 16, 8, 4, 2, 1},
+	"mask":  {128, 192, 224, 240, 248, 252, 254, 255},
+}
+
 func IndexOf(arr [8]int, item int) int {
 	for i, v := range arr {
 		if v == item {
@@ -15,20 +20,7 @@ func IndexOf(arr [8]int, item int) int {
 	}
 	return -1
 }
-
-func main() {
-	REF := map[string][8]int{
-		"magic": {128, 64, 32, 16, 8, 4, 2, 1},
-		"mask":  {128, 192, 224, 240, 248, 252, 254, 255},
-	}
-	//fmt.Println(REF)
-
-	fmt.Println("Enter the IP & Subnet Mask")
-	var ip string
-	var mask string
-	fmt.Scanln(&ip, &mask)
-	//fmt.Printf("IP: %-5v\nMask: %-5v", ip, mask)
-
+func getSubnet(ip string, mask string) ([4]string, []string) {
 	ip_arr := strings.Split(ip, ".")
 	mask_arr := strings.Split(mask, ".")
 
@@ -67,7 +59,10 @@ func main() {
 			subnet_arr[ix] = strconv.Itoa(collect)
 		}
 	}
+	return subnet_arr, mask_arr
+}
 
+func getBroadcast(mask_arr []string, subnet_arr [4]string) ([4]string, [4]string) {
 	//Broadcast address
 	var broadcast_arr [4]string
 	for ix := 0; ix < 4; ix++ {
@@ -95,8 +90,10 @@ func main() {
 			broadcast_arr[ix] = str_res
 		}
 	}
+	return broadcast_arr, subnet_arr
+}
 
-	//1st available host
+func getHosts(subnet_arr [4]string, broadcast_arr [4]string) ([4]string, [4]string) {
 	host_1 := subnet_arr
 	host_1[3] = "1"
 
@@ -104,6 +101,10 @@ func main() {
 	host_2 := broadcast_arr
 	host_2[3] = "254"
 
+	return host_1, host_2
+}
+
+func printIParrays(subnet_arr [4]string, broadcast_arr [4]string, host_1 [4]string, host_2 [4]string) {
 	subnet_str := strings.Join(subnet_arr[:], ".")
 	broadcast_str := strings.Join(broadcast_arr[:], ".")
 	host1_str := strings.Join(host_1[:], ".")
@@ -112,5 +113,23 @@ func main() {
 	fmt.Printf("\nSubnet ID: %v\n", subnet_str)
 	fmt.Printf("Broadcast Address: %v\n", broadcast_str)
 	fmt.Printf("Host Range: %v --> %v\n", host1_str, host2_str)
+}
+
+func main() {
+
+	//fmt.Println(REF)
+
+	fmt.Println("Enter the IP & Subnet Mask")
+	var ip string
+	var mask string
+	fmt.Scanln(&ip, &mask)
+	//fmt.Printf("IP: %-5v\nMask: %-5v", ip, mask)
+	subnet_arr, mask_arr := getSubnet(ip, mask)
+
+	broadcast_arr, subnet_arr := getBroadcast(mask_arr, subnet_arr)
+	//1st available host
+	host_1, host_2 := getHosts(subnet_arr, broadcast_arr)
+
+	printIParrays(subnet_arr, broadcast_arr, host_1, host_2)
 
 }
