@@ -5,9 +5,14 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"os"
 )
 
 var REF = map[string][8]int{
+	"1": {1,2,3,4,5,6,7,8},
+	"2": {9,10,11,12,13,14,15,16},
+	"3": {17,18,19,20,21,22,23,24},
+	"4": {25,26,27,28,29,30},
 	"magic": {128, 64, 32, 16, 8, 4, 2, 1},
 	"mask":  {128, 192, 224, 240, 248, 252, 254, 255},
 }
@@ -115,10 +120,7 @@ func printIParrays(subnet_arr [4]string, broadcast_arr [4]string, host_1 [4]stri
 	fmt.Printf("Host Range: %v --> %v\n", host1_str, host2_str)
 }
 
-func main() {
-
-	//fmt.Println(REF)
-
+func subMain(){
 	fmt.Println("Enter the IP & Subnet Mask")
 	var ip string
 	var mask string
@@ -131,5 +133,27 @@ func main() {
 	host_1, host_2 := getHosts(subnet_arr, broadcast_arr)
 
 	printIParrays(subnet_arr, broadcast_arr, host_1, host_2)
+
+}
+
+var HELP = "-h --> Help\n-c --> for slash notation AKA CIDR\n-m --> Subnet mask provided"
+func cli(){
+	args := os.Args
+	//fmt.Println(len(args))
+	len_args := len(args)
+	switch{
+	case len_args == 1:
+		fmt.Printf("%v",HELP)
+	default:
+		fmt.Println("Arguments given")
+		fmt.Printf("%v",args)
+	}
+}
+
+func main() {
+
+	//fmt.Println(REF)
+	cli()
+	subMain()
 
 }
