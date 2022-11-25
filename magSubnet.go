@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
-	"os"
+	"errors"
 )
 
 var REF = map[string][8]int{
@@ -137,6 +139,93 @@ func subMain(){
 }
 
 var HELP = "-h --> Help\n-c --> for slash notation AKA CIDR\n-m --> Subnet mask provided"
+
+func arg_handler(args []string) []string{
+	//func that takes all the args, parses them and spits out a
+	//slice with 1st being whether or not its CIDR, or mask is given
+
+	//get relevant
+	var ip_mask_arr []string
+	useful_args := args[1:]
+	if useful_args[0] == "-c" {
+		//get the ip/CIDR from useful_args
+		str_res := useful_args[1]
+		ip_cidr := strings.Split(str_res, "/")
+		ip, cidr := ip_cidr[0], ip_cidr[1]
+		ip_mask_arr = append(ip_mask_arr, "CIDR", ip, cidr)
+	} else if useful_args[0] == "-m" {
+		str_res := useful_args[1]
+		ip_mask := strings.Split(str_res, "-")
+		ip, mask := ip_mask[0], ip_mask[1]
+		ip_mask_arr = append(ip_mask_arr, "mask", ip, mask)
+
+	}
+	return ip_mask_arr
+}
+
+func handle_error(err error){
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func toInt(str string) int{
+	res, err := strconv.Atoi(str)
+	handle_error(err)
+	return res
+}
+func toStr(num int) string{
+	res := strconv.Itoa(num)
+	return res
+}
+
+var myErr error
+
+func make_mask(ci string) (string, error){
+	//Func that masks a mask from CIDR number
+	
+	//convert to integer
+	ci_int := toInt(ci)
+	//loop over REF map
+	//create mask by placing mask num at interesting octet
+	errCheck := false
+	var mask_str bytes.Buffer
+	var myErr error
+	for i,arr := range REF{
+		arr_ind := IndexOf(arr, ci_int)
+		if arr_ind != -1 {
+			//go a match, now we get octet of interest and mask mask num
+			octet_num := toInt(i)
+			mask_num := REF["mask"][arr_ind]
+			mask_oct := toStr(mask_num)
+			// fmt.Println(octet_num, mask_num, mask_oct)
+
+			flag := false // for if we hit the oct_num we now add 0
+			for o := 1; o < 5; o++{
+				if o == octet_num{
+					mask_str.WriteString(mask_oct)
+					flag = true
+				} else {
+					if flag == true {
+						mask_str.WriteString("0")
+					} else {
+						mask_str.WriteString("255")
+					}
+				}
+				if o < 4 {
+					mask_str.WriteString(".")
+				}
+			}
+			break
+		}
+	}
+	if errCheck != false {
+		myErr = errors.New("Didnt find a number in REF. Should not happen!")
+	}
+	// fmt.Println(mask_str.String())
+	return mask_str.String(), myErr 
+}
+
 func cli(){
 	args := os.Args
 	//fmt.Println(len(args))
@@ -145,8 +234,25 @@ func cli(){
 	case len_args == 1:
 		fmt.Printf("%v",HELP)
 	default:
-		fmt.Println("Arguments given")
-		fmt.Printf("%v",args)
+		// fmt.Println("Arguments given")
+		// fmt.Printf("%v",args)
+		user_data := arg_handler(args)
+		// fmt.Println(user_data)
+		mode := user_data[0]
+		m_num := user_data[2]
+		ip := user_data[1]
+		if mode == "CIDR"{
+			mask, err := make_mask(m_num)
+			handle_error(err)
+			subnet_arr, mask_arr := getSubnet(ip, mask)
+
+			broadcast_arr, subnet_arr := getBroadcast(mask_arr, subnet_arr)
+			//1st available host
+			host_1, host_2 := getHosts(subnet_arr, broadcast_arr)
+
+			printIParrays(subnet_arr, broadcast_arr, host_1, host_2)
+
+		} 
 	}
 }
 
@@ -154,6 +260,6 @@ func main() {
 
 	//fmt.Println(REF)
 	cli()
-	subMain()
+	// subMain()
 
 }
