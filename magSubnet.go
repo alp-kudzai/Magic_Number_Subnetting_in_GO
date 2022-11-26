@@ -2,19 +2,19 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
-	"errors"
 )
 
 var REF = map[string][8]int{
-	"1": {1,2,3,4,5,6,7,8},
-	"2": {9,10,11,12,13,14,15,16},
-	"3": {17,18,19,20,21,22,23,24},
-	"4": {25,26,27,28,29,30},
+	"1":     {1, 2, 3, 4, 5, 6, 7, 8},
+	"2":     {9, 10, 11, 12, 13, 14, 15, 16},
+	"3":     {17, 18, 19, 20, 21, 22, 23, 24},
+	"4":     {25, 26, 27, 28, 29, 30},
 	"magic": {128, 64, 32, 16, 8, 4, 2, 1},
 	"mask":  {128, 192, 224, 240, 248, 252, 254, 255},
 }
@@ -122,7 +122,7 @@ func printIParrays(subnet_arr [4]string, broadcast_arr [4]string, host_1 [4]stri
 	fmt.Printf("Host Range: %v --> %v\n", host1_str, host2_str)
 }
 
-func subMain(){
+func subMain() {
 	fmt.Println("Enter the IP & Subnet Mask")
 	var ip string
 	var mask string
@@ -140,7 +140,7 @@ func subMain(){
 
 var HELP = "-h --> Help\n-c --> for slash notation AKA CIDR\n-m --> Subnet mask provided"
 
-func arg_handler(args []string) []string{
+func arg_handler(args []string) []string {
 	//func that takes all the args, parses them and spits out a
 	//slice with 1st being whether or not its CIDR, or mask is given
 
@@ -163,27 +163,27 @@ func arg_handler(args []string) []string{
 	return ip_mask_arr
 }
 
-func handle_error(err error){
+func handle_error(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func toInt(str string) int{
+func toInt(str string) int {
 	res, err := strconv.Atoi(str)
 	handle_error(err)
 	return res
 }
-func toStr(num int) string{
+func toStr(num int) string {
 	res := strconv.Itoa(num)
 	return res
 }
 
 var myErr error
 
-func make_mask(ci string) (string, error){
+func make_mask(ci string) (string, error) {
 	//Func that masks a mask from CIDR number
-	
+
 	//convert to integer
 	ci_int := toInt(ci)
 	//loop over REF map
@@ -191,7 +191,7 @@ func make_mask(ci string) (string, error){
 	errCheck := false
 	var mask_str bytes.Buffer
 	var myErr error
-	for i,arr := range REF{
+	for i, arr := range REF {
 		arr_ind := IndexOf(arr, ci_int)
 		if arr_ind != -1 {
 			//go a match, now we get octet of interest and mask mask num
@@ -201,8 +201,8 @@ func make_mask(ci string) (string, error){
 			// fmt.Println(octet_num, mask_num, mask_oct)
 
 			flag := false // for if we hit the oct_num we now add 0
-			for o := 1; o < 5; o++{
-				if o == octet_num{
+			for o := 1; o < 5; o++ {
+				if o == octet_num {
 					mask_str.WriteString(mask_oct)
 					flag = true
 				} else {
@@ -223,16 +223,28 @@ func make_mask(ci string) (string, error){
 		myErr = errors.New("Didnt find a number in REF. Should not happen!")
 	}
 	// fmt.Println(mask_str.String())
-	return mask_str.String(), myErr 
+	return mask_str.String(), myErr
 }
 
-func cli(){
+func process(ip, mask string) {
+	// processes the IP and mask in string and encapsulates functions that
+	// get the get the subnet ID, Broadcast address and Host range
+	subnet_arr, mask_arr := getSubnet(ip, mask)
+
+	broadcast_arr, subnet_arr := getBroadcast(mask_arr, subnet_arr)
+	//1st available host
+	host_1, host_2 := getHosts(subnet_arr, broadcast_arr)
+
+	printIParrays(subnet_arr, broadcast_arr, host_1, host_2)
+}
+
+func cli() {
 	args := os.Args
 	//fmt.Println(len(args))
 	len_args := len(args)
-	switch{
+	switch {
 	case len_args == 1:
-		fmt.Printf("%v",HELP)
+		fmt.Printf("%v", HELP)
 	default:
 		// fmt.Println("Arguments given")
 		// fmt.Printf("%v",args)
@@ -241,18 +253,14 @@ func cli(){
 		mode := user_data[0]
 		m_num := user_data[2]
 		ip := user_data[1]
-		if mode == "CIDR"{
+		if mode == "CIDR" {
 			mask, err := make_mask(m_num)
 			handle_error(err)
-			subnet_arr, mask_arr := getSubnet(ip, mask)
-
-			broadcast_arr, subnet_arr := getBroadcast(mask_arr, subnet_arr)
-			//1st available host
-			host_1, host_2 := getHosts(subnet_arr, broadcast_arr)
-
-			printIParrays(subnet_arr, broadcast_arr, host_1, host_2)
-
-		} 
+			process(ip, mask)
+		} else if mode == "mask" {
+			mask := user_data[2]
+			process(ip, mask)
+		}
 	}
 }
 
