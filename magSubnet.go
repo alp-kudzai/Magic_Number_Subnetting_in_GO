@@ -1,5 +1,8 @@
 package main
 
+//TODO: file containing IPs and mask
+//		handle improper input
+//		general clean up, DRY code
 import (
 	"bytes"
 	"errors"
@@ -11,13 +14,24 @@ import (
 )
 
 var REF = map[string][8]int{
-	"1":     {1, 2, 3, 4, 5, 6, 7, 8},
-	"2":     {9, 10, 11, 12, 13, 14, 15, 16},
-	"3":     {17, 18, 19, 20, 21, 22, 23, 24},
-	"4":     {25, 26, 27, 28, 29, 30},
-	"magic": {128, 64, 32, 16, 8, 4, 2, 1},
-	"mask":  {128, 192, 224, 240, 248, 252, 254, 255},
+	"1":        {1, 2, 3, 4, 5, 6, 7, 8},
+	"2":        {9, 10, 11, 12, 13, 14, 15, 16},
+	"3":        {17, 18, 19, 20, 21, 22, 23, 24},
+	"4":        {25, 26, 27, 28, 29, 30},
+	"magic":    {128, 64, 32, 16, 8, 4, 2, 1},
+	"mask":     {128, 192, 224, 240, 248, 252, 254, 255},
+	"networks": {2, 4, 8, 16, 32, 64, 128, 256},
 }
+
+// mag_num ==> hosts per subnet
+var mag_num int
+
+// Index ==> index for all look ups
+var Index int
+
+// global IP & subnet mask var
+var IP string
+var MASK string
 
 func IndexOf(arr [8]int, item int) int {
 	for i, v := range arr {
@@ -27,7 +41,7 @@ func IndexOf(arr [8]int, item int) int {
 	}
 	return -1
 }
-func getSubnet(ip string, mask string) ([4]string, []string) {
+func getSubnet(ip, mask string) ([4]string, []string) {
 	ip_arr := strings.Split(ip, ".")
 	mask_arr := strings.Split(mask, ".")
 
@@ -48,8 +62,8 @@ func getSubnet(ip string, mask string) ([4]string, []string) {
 				log.Fatal(err)
 			}
 			mask_REF := REF["mask"]
-			index := IndexOf(mask_REF, mask_int)
-			mag_num := REF["magic"][index]
+			Index = IndexOf(mask_REF, mask_int)
+			mag_num = REF["magic"][Index]
 			collect := 0
 			ip_int, err := strconv.Atoi(ip_arr[ix])
 			if err != nil {
@@ -79,19 +93,9 @@ func getBroadcast(mask_arr []string, subnet_arr [4]string) ([4]string, [4]string
 		case mask_arr[ix] == "0":
 			broadcast_arr[ix] = "255"
 		default:
-			//boilerplate
-			mask_int, err := strconv.Atoi(mask_arr[ix])
-			if err != nil {
-				log.Fatal(err)
-			}
-			mask_REF := REF["mask"]
-			index := IndexOf(mask_REF, mask_int)
-			mag_num := REF["magic"][index]
-			//ip octet number + magic num -1
+			//IPoctet number + magic num -1
 			subnet_num, err := strconv.Atoi(subnet_arr[ix])
-			if err != nil {
-				log.Fatal(err)
-			}
+			handle_error(err)
 			result := subnet_num + mag_num - 1
 			str_res := strconv.Itoa(result)
 			broadcast_arr[ix] = str_res
@@ -111,32 +115,35 @@ func getHosts(subnet_arr [4]string, broadcast_arr [4]string) ([4]string, [4]stri
 	return host_1, host_2
 }
 
-func printIParrays(subnet_arr [4]string, broadcast_arr [4]string, host_1 [4]string, host_2 [4]string) {
+func printIParrays(subnet_arr [4]string, broadcast_arr [4]string, host_1 [4]string, host_2 [4]string, net_num int) {
 	subnet_str := strings.Join(subnet_arr[:], ".")
 	broadcast_str := strings.Join(broadcast_arr[:], ".")
 	host1_str := strings.Join(host_1[:], ".")
 	host2_str := strings.Join(host_2[:], ".")
 
-	fmt.Printf("\nSubnet ID: %v\n", subnet_str)
+	fmt.Printf("\nIP Address: %v\nSubnet Mask: %v\n", IP, MASK)
+	fmt.Printf("Subnet ID: %v\n", subnet_str)
 	fmt.Printf("Broadcast Address: %v\n", broadcast_str)
 	fmt.Printf("Host Range: %v --> %v\n", host1_str, host2_str)
+	fmt.Printf("Number of Networks: %v\n", net_num)
+	fmt.Printf("Number of Addresses/Subnet: %v\n", mag_num)
 }
 
-func subMain() {
-	fmt.Println("Enter the IP & Subnet Mask")
-	var ip string
-	var mask string
-	fmt.Scanln(&ip, &mask)
-	//fmt.Printf("IP: %-5v\nMask: %-5v", ip, mask)
-	subnet_arr, mask_arr := getSubnet(ip, mask)
+//func subMain() {
+//	fmt.Println("Enter the IP & Subnet Mask")
+//	var IPstring
+//	var mask string
+//	fmt.Scanln(&ip, &mask)
+//	//fmt.Printf("IP: %-5v\nMask: %-5v", ip, mask)
+//	subnet_arr, mask_arr := getSubnet(ip, mask)
 
-	broadcast_arr, subnet_arr := getBroadcast(mask_arr, subnet_arr)
-	//1st available host
-	host_1, host_2 := getHosts(subnet_arr, broadcast_arr)
+//	broadcast_arr, subnet_arr := getBroadcast(mask_arr, subnet_arr)
+//	//1st available host
+//	host_1, host_2 := getHosts(subnet_arr, broadcast_arr)
 
-	printIParrays(subnet_arr, broadcast_arr, host_1, host_2)
+//	// printIParrays(subnet_arr, broadcast_arr, host_1, host_2, net_num, mag_num)
 
-}
+//}
 
 var HELP = "-h --> Help\n-c --> for slash notation AKA CIDR\n-m --> Subnet mask provided"
 
@@ -234,8 +241,11 @@ func process(ip, mask string) {
 	broadcast_arr, subnet_arr := getBroadcast(mask_arr, subnet_arr)
 	//1st available host
 	host_1, host_2 := getHosts(subnet_arr, broadcast_arr)
-
-	printIParrays(subnet_arr, broadcast_arr, host_1, host_2)
+	//get network number
+	// log.Println(Index)
+	network_num := REF["networks"][Index]
+	// log.Println(IP, MASK)
+	printIParrays(subnet_arr, broadcast_arr, host_1, host_2, network_num)
 }
 
 func cli() {
@@ -252,14 +262,16 @@ func cli() {
 		// fmt.Println(user_data)
 		mode := user_data[0]
 		m_num := user_data[2]
-		ip := user_data[1]
+		IP = user_data[1]
 		if mode == "CIDR" {
-			mask, err := make_mask(m_num)
+			msk, err := make_mask(m_num)
 			handle_error(err)
-			process(ip, mask)
+			MASK = msk
+			log.Println(IP, MASK)
+			process(IP, MASK)
 		} else if mode == "mask" {
-			mask := user_data[2]
-			process(ip, mask)
+			MASK = user_data[2]
+			process(IP, MASK)
 		}
 	}
 }
