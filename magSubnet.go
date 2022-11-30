@@ -4,6 +4,7 @@ package main
 //		handle improper input
 //		general clean up, DRY code
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -128,6 +129,16 @@ func printIParrays(subnet_arr [4]string, broadcast_arr [4]string, host_1 [4]stri
 	fmt.Printf("Number of Networks: %v\n", net_num)
 	fmt.Printf("Number of Addresses/Subnet: %v\n", mag_num)
 }
+func packageInfo(subnet_arr [4]string, broadcast_arr [4]string, host_1 [4]string, host_2 [4]string, net_num int) string {
+	subnet_str := strings.Join(subnet_arr[:], ".")
+	broadcast_str := strings.Join(broadcast_arr[:], ".")
+	host1_str := strings.Join(host_1[:], ".")
+	host2_str := strings.Join(host_2[:], ".")
+	mag_num_str := toStr(mag_num)
+	net_num_str := toStr(net_num)
+	return "IP Address: " + IP + "\nSubnet Mask: " + MASK + "\nSubnet ID: " + subnet_str + "\nBroadcast Address: " +
+		broadcast_str + "\nHost Range: " + host1_str + "->" + host2_str + "\nNetwork Number: " + net_num_str + "\nAddress per Subnet: " + mag_num_str + "\r\n\n"
+}
 
 //func subMain() {
 //	fmt.Println("Enter the IP & Subnet Mask")
@@ -145,7 +156,7 @@ func printIParrays(subnet_arr [4]string, broadcast_arr [4]string, host_1 [4]stri
 
 //}
 
-var HELP = "-h --> Help\n-c --> for slash notation AKA CIDR\n-m --> Subnet mask provided"
+var HELP = "-h --> Help\n-c --> for slash notation AKA CIDR\n-m --> Subnet mask provided\n-f --> enter an input and outfile\n"
 
 func arg_handler(args []string) []string {
 	//func that takes all the args, parses them and spits out a
@@ -166,13 +177,23 @@ func arg_handler(args []string) []string {
 		ip, mask := ip_mask[0], ip_mask[1]
 		ip_mask_arr = append(ip_mask_arr, "mask", ip, mask)
 
+	} else if useful_args[0] == "-fc" {
+		inputFile := useful_args[1]
+		outFile := useful_args[2]
+		ip_mask_arr = append(ip_mask_arr, "fileC", inputFile, outFile)
+	} else if useful_args[0] == "-fm" {
+		inputFile := useful_args[1]
+		outFile := useful_args[2]
+		ip_mask_arr = append(ip_mask_arr, "fileM", inputFile, outFile)
 	}
+
 	return ip_mask_arr
 }
 
 func handle_error(err error) {
 	if err != nil {
 		log.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -248,6 +269,19 @@ func process(ip, mask string) {
 	printIParrays(subnet_arr, broadcast_arr, host_1, host_2, network_num)
 }
 
+func processReturn(ip, mask string) string {
+	subnet_arr, mask_arr := getSubnet(ip, mask)
+
+	broadcast_arr, subnet_arr := getBroadcast(mask_arr, subnet_arr)
+	//1st available host
+	host_1, host_2 := getHosts(subnet_arr, broadcast_arr)
+	//get network number
+	// log.Println(Index)
+	network_num := REF["networks"][Index]
+	string_results := packageInfo(subnet_arr, broadcast_arr, host_1, host_2, network_num)
+	return string_results
+}
+
 func cli() {
 	args := os.Args
 	//fmt.Println(len(args))
@@ -261,17 +295,95 @@ func cli() {
 		user_data := arg_handler(args)
 		// fmt.Println(user_data)
 		mode := user_data[0]
-		m_num := user_data[2]
-		IP = user_data[1]
+
 		if mode == "CIDR" {
+			m_num := user_data[2]
+			IP = user_data[1]
 			msk, err := make_mask(m_num)
 			handle_error(err)
 			MASK = msk
 			log.Println(IP, MASK)
 			process(IP, MASK)
 		} else if mode == "mask" {
+			IP = user_data[1]
 			MASK = user_data[2]
 			process(IP, MASK)
+		} else if mode == "fileC" {
+			user_infile := user_data[1]
+			user_outfile := user_data[2]
+			file, err := os.Open(user_infile) // os.Open opens file for readonly
+			handle_error(err)
+			file_contents := bufio.NewReader(file) //files contents
+			//Output contents
+			var output_content string
+			//loop over contents infile
+			defer file.Close()
+			for {
+				line, err := file_contents.ReadString('\n')
+				if err != nil {
+					fmt.Println(err)
+					break
+				}
+				line = strings.TrimRight(line, "\r\n")
+				//fmt.Println(line)
+				var file_args []string //create an args slice to stuff the mode and line into
+				file_args = append(file_args, "padding", "-c", line)
+				// log.Println(file_args)
+				file_data := arg_handler(file_args)
+				//log.Println(file_data)
+				m_num := file_data[2]
+				IP = file_data[1]
+				msk, err := make_mask(m_num)
+				handle_error(err)
+				MASK = msk
+				//log.Println(IP, MASK)
+				output_content += processReturn(IP, MASK)
+
+			}
+			// fmt.Println(output_content)
+			outFile, err := os.Create(user_outfile)
+			handle_error(err)
+			write_file := bufio.NewWriter(outFile)
+			write_log, err := write_file.WriteString(output_content)
+			handle_error(err)
+			log.Printf("wrote %d bytes", write_log)
+			write_file.Flush()
+			defer outFile.Close()
+
+		} else if mode == "fileM" {
+			user_infile := user_data[1]
+			user_outfile := user_data[2]
+			file, err := os.Open(user_infile) // os.Open opens file for readonly
+			handle_error(err)
+			file_contents := bufio.NewReader(file) //files contents
+			//Output contents
+			var output_content string
+			//loop over contents infile
+			defer file.Close()
+			for {
+				line, err := file_contents.ReadString('\n')
+				if err != nil {
+					fmt.Println(err)
+					break
+				}
+				line = strings.TrimRight(line, "\r\n")
+				//fmt.Println(line)
+				var file_args []string //create an args slice to stuff the mode and line into
+				file_args = append(file_args, "padding", "-m", line)
+				// log.Println(file_args)
+				file_data := arg_handler(file_args)
+				IP = file_data[1]
+				MASK = file_data[2]
+				output_content += processReturn(IP, MASK)
+			}
+			outFile, err := os.Create(user_outfile)
+			handle_error(err)
+			write_file := bufio.NewWriter(outFile)
+			write_log, err := write_file.WriteString(output_content)
+			handle_error(err)
+			log.Printf("wrote %d bytes", write_log)
+			write_file.Flush()
+			defer outFile.Close()
 		}
 	}
 }
@@ -281,5 +393,6 @@ func main() {
 	//fmt.Println(REF)
 	cli()
 	// subMain()
+	os.Exit(1)
 
 }

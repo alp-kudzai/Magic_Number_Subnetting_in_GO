@@ -1,0 +1,32 @@
+IP Address: 10.180.10.18
+Subnet Mask: 255.192.0.0
+Subnet ID: 10.128.0.0
+Broadcast Address: 10.191.255.255
+Host Range: 10.128.0.1->10.191.255.254
+Network Number: 4
+Address per Subnet: 64
+
+IP Address: 10.200.10.18
+Subnet Mask: 255.224.0.0
+Subnet ID: 10.192.0.0
+Broadcast Address: 10.223.255.255
+Host Range: 10.192.0.1->10.223.255.254
+Network Number: 8
+Address per Subnet: 32
+
+IP Address: 10.100.18.18
+Subnet Mask: 255.240.0.0
+Subnet ID: 10.96.0.0
+Broadcast Address: 10.111.255.255
+Host Range: 10.96.0.1->10.111.255.254
+Network Number: 16
+Address per Subnet: 16
+
+IP Address: 10.100.18.18
+Subnet Mask: 255.248.0.0
+Subnet ID: 10.96.0.0
+Broadcast Address: 10.103.255.255
+Host Range: 10.96.0.1->10.103.255.254
+Network Number: 32
+Address per Subnet: 8
+
